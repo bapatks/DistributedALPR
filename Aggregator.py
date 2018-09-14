@@ -46,7 +46,7 @@ def Receive_Data():
 	while counter < 2:
 		raw_data = pickle.loads(socket.recv())
 		frame_data_object = deserialize(raw_data, counter)
-		print("Received a matched frame data....")
+		print("Received a matched frame!")
 		Write_to_file(frame_data_object, filename, counter)
 		counter += 1
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-controller = dict(controller_ip="127.0.0.1", serv_control_port="3000", client_control_port="8080")
+controller = dict(controller_ip="127.0.0.1", serv_control_port="3000", 
+				  client_control_port="8080")
 
 '''
 SERVER
@@ -11,7 +12,7 @@ no_of_conn is used to specify the number of clients that can connect to a single
 '''
 server = dict(controller_ip="127.0.0.1", control_port="3000", command_port="5555", 
 	data_port="2222", buffer_size="50", predictions="5",
-	no_of_conn="10")
+	no_of_conn="10", cnfd_level=70)
 
 '''
 CLIENT
@@ -19,3 +20,9 @@ controller_ip must be same as controller_ip of controller
 rrport must be same as client control port of controller
 '''
 client = dict(controller_ip="127.0.0.1", rrport="8080")
+
+'''
+AGGREGATOR
+controller_ip must be same as controller_ip of controller
+'''
+aggr = dict(controller_ip="127.0.0.1")

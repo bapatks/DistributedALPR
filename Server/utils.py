@@ -66,11 +66,12 @@ class Control():
 	@staticmethod
 	def _join(config):
 		config.control.send_multipart(["JOIN!", config.servID, config.host_ip, config.command_port])
-		receive = config.control.recv()
-		print("Controller: "+receive)
-		if receive[:4]=="200!":
+		status, servID, aggr = config.control.recv_multipart()
+		print("Controller: "+status)
+		if status=="200!":
 			#print(receive)
-			config.servID = receive[4:]
+			config.servID = servID
+			config.aggr_addr = aggr
 			return 0
 		else:
 			print("Server: ERROR")

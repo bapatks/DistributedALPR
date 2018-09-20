@@ -27,6 +27,9 @@ if __name__ == '__main__':
 		servconfig.receiver.close()
 		sys.exit()
 
+	#connect to aggregator after receiving aggregator address in reply to JOIN request
+	servconfig.aggr_sender.connect("tcp://"+servconfig.aggr_addr)
+	
 	get = sink.ReceiveFrames()
 	put = sink.AlprProcessing()
 	

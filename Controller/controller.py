@@ -6,6 +6,7 @@ from client_manage import ManageClients
 class Config():
 	def __init__(self):
 		self.host_ip = settings.controller['controller_ip']
+		self.aggr_addr = ""
 		# {servID: no_of_clients, servID:2}
 		self.serv_load = dict()
 
@@ -41,10 +42,29 @@ class Config():
 		self.client_control = self.context.socket(zmq.ROUTER)
 		self.client_control.bind("tcp://"+self.host_ip+":"+self.client_reply_port)
 
+		'''
+		- To communicate with aggregator(s) by sending OUT replies
+		- This socket LISTENS for requests from aggregators and replies accordingly
+		'''
+		self.aggr_reply_port = "7777"
+		self.aggr_control = self.context.socket(zmq.REP)
+		self.aggr_control.bind("tcp://"+self.host_ip+":"+self.aggr_reply_port)
+
 if __name__ == '__main__':
 	do_exit = False
 	ctrl_config = Config()
 	print("Controller: Listening for requests ...")
+
+	#wait until atleast one aggregator joins the network
+	aggr_req = ctrl_config.aggr_control.recv()
+	if(aggr_req[:5] == "JOIN!"):
+		ctrl_config.aggr_addr = aggr_req[5:]
+		print("received "+ctrl_config.aggr_addr)
+		ctrl_config.aggr_control.send("200!")
+	else:
+		ctrl_config.aggr_control.send("400!")
+		print("could not join an aggregator")
+		sys.exit()
 
 	#create objects for both classes
 	#The object instatiation spawns a thread in the constructor for that object

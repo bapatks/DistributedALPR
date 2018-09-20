@@ -1,55 +1,59 @@
 from openalpr import Alpr
-import cv2, sys, time, numpy
-import zmq, time, json, os
+import cv2, sys, time, numpy, zmq, time, json, os, pickle
+
+
+class Frame_Data():
+    def __init__(self, path_to_frame, server_identity, time, matched_plates):
+        self.byte_frame = cv2.imencode('.jpg', cv2.imread(path_to_frame, cv2.IMREAD_COLOR) )[1].tostring()
+        self.server_identity = server_identity
+        self.time = time
+        self.matched_plates = matched_plates
+
+
 
 class Recognize():
-    global alpr, path
-    alpr = Alpr("us", "/etc/openalpr/openalpr.conf", "/usr/share/openalpr/runtime_data")
-    path = ''
-
-    def __init__(self, no_of_speculations, country_region):
-        global alpr, path
-        if not alpr.is_loaded():
-            print("Error loading OpenALPR")
+    def __init__(self, no_of_speculations, country_region, confidence):
+        print("OpenAlpr is loading.....")
+        try:
+            self.ALPR = Alpr("us", "/etc/openalpr/openalpr.conf", "/usr/share/openalpr/runtime_data")
+        except:
+            print("Error loading OpenAlpr")
             sys.exit(1)
-        alpr.set_top_n(no_of_speculations)
-        alpr.set_default_region(country_region)
-        print("OpenAlpr is loaded")
-        time.sleep(2)
+        self.NO_OF_SPECULATIONS = no_of_speculations
+        self.COUNTRY_REGION =country_region
+        self.CONFIDENCE = confidence
+        self.PLATES_REPOSITORY = ["WKX212", "7UFX735"]
+        self.MATCHING_LENGTH = 3
+        self.ALPR.set_top_n(self.NO_OF_SPECULATIONS)
+        self.ALPR.set_default_region(self.COUNTRY_REGION)
 
-    def utility(self, image_name):
-        global alpr, path
-        results, i = alpr.recognize_file(image_name), 0
 
-        plate_no = "710CAS"
-        ans = []
-
+    def Identify_Frame(self, path_to_frame, server_identity, aggr_sender):
+        results = self.ALPR.recognize_file(path_to_frame)
+        matched_plates = []
+    
         for plate in results['results']:
-            i += 1
-            flag = 0
-            #print("Plate #%d" % i)
-            #print("   %12s %12s" % ("Plate", "Confidence"))
             for candidate in plate['candidates']:
-                prefix = "-"
-                
-                if candidate['matches_template']:
-                    prefix = "*"
-                
-                #print("  %s %12s%12f" % (prefix, candidate['plate'], candidate['confidence']))
+                # print(server_identity + " " +candidate['plate'])
 
-                #print(candidate['plate'])
-                length = self.LCS(plate_no, candidate['plate'], len(plate_no), len(candidate['plate']))
-                conf_level = candidate['confidence']
+                if self.CONFIDENCE <= candidate['confidence']:
+                    for x in self.PLATES_REPOSITORY:
+                        length = self.LongestCommonString(x, candidate['plate'], len(x), len(candidate['plate']))
+                        
+                        if length >= self.MATCHING_LENGTH:
+                            matched_plates.append([x, str(candidate['plate']), candidate['confidence']])
 
-                if length >= 4 and conf_level > 70: 
-                    flag = True
-                    ans.append( [candidate['plate'], candidate['confidence']] )
-        if flag:
-            frame = cv2.imread(image_name, cv2.IMREAD_COLOR)
-            return cv2.imencode('.jpg', frame)[1].tostring()
+        data = None
+        if len(matched_plates) > 0:
+            data = Frame_Data(path_to_frame, server_identity, "", matched_plates)
+
+        if data:
+            aggr_sender.send(pickle.dumps(data))
 
 
-    def LCS(self, X, Y, m, n):  
+
+    #returns the length of longest common substring matched
+    def LongestCommonString(self, X, Y, m, n):  
         LCSuff = [[0 for k in range(n+1)] for l in range(m+1)] 
         result = 0 
       
@@ -63,17 +67,3 @@ class Recognize():
                 else: 
                     LCSuff[i][j] = 0
         return result
-
-
-
-context = zmq.Context()
-aggre_socket = context.socket(zmq.PUSH)
-
-
-path = os.getcwd() + "/frame.jpeg"
-my_object = Recognize(4, "ca")
-data = my_object.utility(path)
-print("done")
-
-aggre_socket.connect("tcp://127.0.0.1:9999")
-aggre_socket.send(data)

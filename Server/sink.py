@@ -7,6 +7,7 @@ class Config():
 	def __init__(self):
 		self.host_ip = sys.argv[1]
 		self.control_ip = settings.server['controller_ip']
+		self.aggr_addr = ""
 
 		#sets a limit on number of clients that can connect to a server
 		self.no_of_conn = int(settings.server['no_of_conn'])
@@ -19,7 +20,7 @@ class Config():
 
 		#client specific - may need to be pushed to another client specific class
 		self.ring_buffer = RingBuffer(int(settings.server['buffer_size']))
-		self.open_alpr = Recognize(int(settings.server['predictions']), "ca", os.getcwd())
+		self.open_alpr = Recognize(int(settings.server['predictions']), "ca", settings.server['cnfd_level'])
 		self.complete = False   #may need revision
 		self.msg_count=0 		#only for debug purposes
 		
@@ -40,11 +41,17 @@ class Config():
 		self.receiver = context.socket(zmq.PULL)
 		self.receiver.bind("tcp://"+self.host_ip+":"+self.data_port)
 
+		#To push frames to aggregator(s)
+		#connects in servstart.py
+		self.aggr_sender = context.socket(zmq.PUSH)
+
 class ReceiveFrames():
 	def _get_stream(self,config):
 		print("Ready to receive stream....")
 		while not config.complete:
 			#print(".")
+			sys.stdout.write(".")
+			sys.stdout.flush()
 			self.current_frame_string = self.__utility(config, True)
 			self.np_array = numpy.fromstring(self.current_frame_string, numpy.uint8)
 			self.current_frame = cv2.imdecode(self.np_array, cv2.IMREAD_COLOR)
@@ -123,5 +130,6 @@ class AlprProcessing():
 			frame = config.ring_buffer.pull(config.ring_buffer.tail)
 			config.ring_buffer.tail = fwd
 			config.ring_buffer.lock.notify()
-			config.ring_buffer.lock.release()                    
-			config.open_alpr.put(self.__preprocess(frame))
+			config.ring_buffer.lock.release()   
+			cv2.imwrite(os.getcwd() + "/"+ config.servID +".jpg", frame)                 
+			config.open_alpr.Identify_Frame(os.getcwd() + "/"+ config.servID +".jpg", config.servID, config.aggr_sender)

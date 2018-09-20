@@ -50,12 +50,14 @@ class ManageServers(StoppableThread):
 					print(config.serv_meta)
 					config.serv_load[servID] = 0
 					print(config.serv_load)
-					reply_msg = "200!"+servID
-					config.serv_control.send_multipart([server, "", reply_msg])
+					#reply_msg = "200!"+servID
+					status = "200!"
+					config.serv_control.send_multipart([server, "", status, servID, config.aggr_addr])
 
 			except:
 				#400 - Bad request
-				config.serv_control.send_multipart([server, "", "400!"])
+				status = "400!"
+				config.serv_control.send_multipart([server, "", status, "", ""])
 
 			#for reliable working of REQ-REP
 			config.command.disconnect("tcp://"+serv_ip+":"+serv_cmd_port)
